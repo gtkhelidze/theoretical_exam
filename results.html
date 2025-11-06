@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ka">
+<head>
+  <meta charset="UTF-8">
+  <title>შედეგები</title>
+  <style>
+    body { 
+      font-family:"Segoe UI",sans-serif;
+      background:#0d1117; 
+      color:#e6edf3; 
+      text-align:center; 
+      padding:40px;
+    }
+
+    .result-box { 
+      background:#161b22; 
+      color:#e6edf3; 
+      border-radius:14px; 
+      padding:25px 35px; 
+      box-shadow:0 0 25px rgba(0,0,0,0.45); 
+      max-width:860px; 
+      margin:0 auto; 
+    }
+
+    .btn { 
+      margin-top:15px; 
+      padding:12px 28px; 
+      border:none; 
+      border-radius:10px; 
+      cursor:pointer; 
+      font-size:17px; 
+      transition:0.2s; 
+    }
+
+    .btn-primary { background:#238636; color:white; }
+    .btn-primary:hover { background:#2ea043; }
+
+    .btn-dark { background:#30363d; color:white; }
+    .btn-dark:hover { background:#484f58; }
+
+    table { 
+      width:100%; 
+      border-collapse:collapse; 
+      margin-top:15px; 
+      font-size:15px;
+    }
+
+    th, td { 
+      border:1px solid #30363d; 
+      padding:10px; 
+      text-align:center; 
+    }
+
+    th { 
+      background:#1f6feb; 
+      color:white; 
+    }
+
+    .pass { color:#2ea043; font-weight:bold; font-size:18px; }
+    .fail { color:#da3633; font-weight:bold; font-size:18px; }
+
+    .progress-container { position:relative; width:150px; height:150px; margin:20px auto; }
+    .progress-circle { transform:rotate(-90deg); }
+    .progress-circle circle { fill:none; stroke-width:12; stroke-linecap:round; }
+    .progress-bg { stroke:#30363d; }
+    .progress-bar { transition:stroke-dashoffset 1s ease; }
+    .progress-text { 
+      position:absolute; 
+      top:50%; 
+      left:50%; 
+      transform:translate(-50%,-50%); 
+      font-size:25px; 
+      font-weight:bold; 
+    }
+  </style>
+</head>
+<body>
+  <div class="result-box" id="resultBox">
+    <h1>შედეგები იტვირთება...</h1>
+  </div>
+
+  <script>
+    (function(){
+      const data = JSON.parse(localStorage.getItem("quizResults"));
+      const box = document.getElementById("resultBox");
+
+      if (!data) {
+        box.innerHTML = "<h2>შედეგები ვერ მოიძებნა 😕</h2>";
+        return;
+      }
+
+      const total = data.questions.length;
+      const correct = data.correctCount;
+      const percent = Math.round((correct / total) * 100);
+      const radius = 65;
+      const circumference = 2 * Math.PI * radius;
+      const date = new Date();
+      const formattedDate = `${String(date.getDate()).padStart(2,'0')}.${String(date.getMonth()+1).padStart(2,'0')}.${date.getFullYear()} ${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}`;
+
+      const allResults = JSON.parse(localStorage.getItem("allResults")) || [];
+      allResults.push({
+        name: data.name,
+        score: correct,
+        total: total,
+        percent: percent,
+        date: formattedDate,
+        questions: data.questions,
+        answers: data.answers
+      });
+      localStorage.setItem("allResults", JSON.stringify(allResults));
+
+      let ratingText = "";
+      if (percent === 100) ratingText = "🏆 შესანიშნავი შედეგი!";
+      else if (percent >= 80) ratingText = "🎯 ძალიან კარგი!";
+      else if (percent >= 60) ratingText = "🙂 საშუალოზე მაღალი შედეგი!";
+      else if (percent >= 40) ratingText = "😐 შეგიძლია უკეთესადაც!";
+      else ratingText = "📘 სცადე კიდევ ერთხელ!";
+
+      let barColor = "#da3633";
+      if (percent >= 80) barColor = "#2ea043";
+      else if (percent >= 50) barColor = "#ff9800";
+
+      const passMark = 23;
+      const passBlock = correct >= passMark
+        ? `<p class="pass">🎉 გამოცდა ჩაბარებულია ✅</p>`
+        : `<p class="fail">❌ გამოცდა ვერ ჩააბარა</p>`;
+
+      let detailsHTML = `<h3 style="margin-top:25px;">📖 დეტალური შედეგები</h3>
+      <table><tr><th>#</th><th>კითხვა</th><th>შენი პასუხი</th><th>სწორი პასუხი</th><th>სტატუსი</th></tr>`;
+      data.questions.forEach((q, i) => {
+        const userAnswer = data.answers[i];
+        const isCorrect = userAnswer === q.correct;
+        detailsHTML += `
+          <tr style="background-color:${isCorrect ? '#143416' : '#38191a'};">
+            <td>${i + 1}</td>
+            <td>${q.question}</td>
+            <td>${userAnswer !== null ? q.options[userAnswer] : '—'}</td>
+            <td>${q.options[q.correct]}</td>
+            <td style="font-weight:bold; color:${isCorrect ? '#2ea043' : '#da3633'};">${isCorrect ? 'სწორია ✅' : 'არასწორია ❌'}</td>
+          </tr>`;
+      });
+      detailsHTML += "</table>";
+
+      const html = `
+        <h2>${data.name}!</h2>
+        <div class="progress-container">
+          <svg class="progress-circle" width="150" height="150">
+            <circle class="progress-bg" cx="75" cy="75" r="${radius}"></circle>
+            <circle class="progress-bar" cx="75" cy="75" r="${radius}" stroke="${barColor}" stroke-dasharray="${circumference}" stroke-dashoffset="${circumference}"></circle>
+          </svg>
+          <div class="progress-text" style="color:${barColor}">0%</div>
+        </div>
+
+        <p class="score">შენი ქულა: <strong>${correct} / ${total}</strong></p>
+        <p class="rating">${ratingText}</p>
+        ${passBlock}
+        <p><em>თარიღი: ${formattedDate}</em></p>
+
+        <button class="btn btn-primary" onclick="window.location.href='theoretical_exam.html'">თავიდან დაწყება</button>
+
+        ${detailsHTML}
+      `;
+
+      box.innerHTML = html;
+
+      const progressBar = document.querySelector(".progress-bar");
+      const progressText = document.querySelector(".progress-text");
+
+      if (!progressBar || !progressText) return;
+
+      let progress = 0;
+      const target = percent;
+      const tick = () => {
+        if (progress > target) return;
+        const offset = circumference - (progress / 100) * circumference;
+        progressBar.style.strokeDashoffset = offset;
+        progressText.textContent = progress + "%";
+        progress += 1;
+        if (progress <= target) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    })();
+  </script>
+</body>
+</html>

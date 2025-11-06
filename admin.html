@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="ka">
+<head>
+  <meta charset="UTF-8" />
+  <title>ადმინისტრატორის პანელი — გამოცდის შედეგები</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    :root{
+      --bg:#0d1117;
+      --surface:#161b22;
+      --text:#e6edf3;
+      --muted:#8b949e;
+      --border:#30363d;
+      --primary:#1f6feb;
+      --primary-weak:#1f6feb22;
+      --success:#2ea043;
+      --danger:#da3633;
+      --hover:#21262d;
+      --pill-pass-bg:#143416;
+      --pill-fail-bg:#38191a;
+    }
+
+    /* Base */
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family:"Segoe UI",system-ui,-apple-system,Arial,sans-serif;
+      background:var(--bg);
+      color:var(--text);
+      min-height:100vh;
+    }
+
+    .wrap{ max-width:1100px; margin:32px auto; padding:0 16px; }
+
+    /* Card */
+    .card{
+      background:var(--surface);
+      color:var(--text);
+      border-radius:14px;
+      padding:20px 20px;
+      box-shadow:0 10px 30px rgba(0,0,0,.35);
+      border:1px solid var(--border);
+    }
+
+    h1{ margin:0 0 8px; font-size:24px; }
+    .sub{ color:var(--muted); margin-bottom:16px; }
+
+    /* Controls */
+    .controls{
+      display:grid;
+      grid-template-columns:1fr 180px 180px auto;
+      gap:10px;
+      margin-bottom:14px;
+      align-items:center;
+    }
+    input[type="search"], select{
+      background:#0d1117;
+      color:var(--text);
+      border:1px solid var(--border);
+      border-radius:10px;
+      padding:10px 12px;
+      font-size:14px;
+      outline:none;
+    }
+    input::placeholder{ color:#9aa3ab; }
+
+    /* Buttons */
+    .btn{
+      border:0; border-radius:10px; padding:10px 14px; cursor:pointer; font-weight:600;
+      background:var(--primary); color:#fff; transition:.18s;
+    }
+    .btn:hover{ filter:brightness(1.05); box-shadow:0 0 0 3px var(--primary-weak); }
+    .btn.secondary{ background:#30363d; }
+    .btn.secondary:hover{ background:#3a4149; box-shadow:none; }
+    .btn.danger{ background:var(--danger); }
+    .btn.danger:hover{ filter:brightness(1.05); }
+
+    /* Table */
+    .table-wrap{ overflow:auto; border-radius:10px; border:1px solid var(--border); }
+    table{ width:100%; border-collapse:collapse; min-width:820px; }
+    th,td{ padding:10px 12px; border-bottom:1px solid var(--border); text-align:left; }
+    th{
+      background:var(--primary);
+      color:#fff;
+      font-size:12px;
+      position:sticky; top:0; z-index:1;
+    }
+    tr:hover td{ background:var(--hover); }
+    .right{text-align:right}
+    .muted{ color:var(--muted); }
+
+    /* Pills */
+    .pill{ font-size:12px; padding:4px 8px; border-radius:999px; font-weight:700; display:inline-block; }
+    .pill.pass{ background:var(--pill-pass-bg); color:var(--success); border:1px solid #1f5f2a66; }
+    .pill.fail{ background:var(--pill-fail-bg); color:var(--danger); border:1px solid #5f1f2066; }
+
+    /* Loader / empty */
+    .loader,.empty{ padding:18px; color:var(--muted); }
+
+    /* Login Gate (bright as requested) */
+    .gate{
+      position:fixed; inset:0; background:rgba(0,0,0,.55);
+      display:flex; align-items:center; justify-content:center; z-index:50;
+    }
+    .gate .box{
+      width:100%; max-width:380px; background:#ffffff; color:#111827; border-radius:12px; padding:20px;
+      box-shadow:0 10px 30px rgba(0,0,0,.25);
+    }
+    .gate h2{ margin:0 0 8px; }
+    .gate p{ margin:0 0 16px; color:#6b7280; }
+    .gate input{
+      width:100%; border:1px solid #e5e7eb; border-radius:10px; padding:10px 12px; font-size:14px; outline:none;
+      background:#fff; color:#111827;
+    }
+    .gate input:focus{ border-color:#3b82f6; }
+    .gate .row{ display:flex; gap:8px; margin-top:12px; }
+    .error{ color:#ef4444; font-size:13px; margin-top:8px; min-height:18px; }
+    .footer{ margin-top:10px; font-size:12px; color:#94a3b8; }
+
+    /* Modal (dark) */
+    .modal{ position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:center; justify-content:center; z-index:60; }
+    .modal.active{ display:flex; }
+    .modal .panel{
+      width:96%; max-width:900px; max-height:80vh; overflow:auto;
+      background:var(--surface); color:var(--text); border-radius:12px; padding:16px; border:1px solid var(--border);
+      box-shadow:0 10px 30px rgba(0,0,0,.35);
+    }
+    .modal h3{ margin:0 0 8px; }
+    .modal pre{
+      background:var(--bg); color:var(--text); padding:12px; border-radius:8px; overflow:auto; border:1px solid var(--border);
+    }
+    .close-x{ float:right; cursor:pointer; font-weight:700; color:var(--muted); }
+    .close-x:hover{ color:#c9d1d9; }
+
+    /* Details table inside modal */
+    .modal table{ width:100%; border-collapse:collapse; }
+    .modal th, .modal td{ border-bottom:1px solid var(--border); padding:8px 10px; text-align:left; }
+    .modal th{ background:var(--primary); color:#fff; position:sticky; top:0; }
+    .row-correct{ background:#143416; }
+    .row-wrong{ background:#38191a; }
+  </style>
+</head>
+<body>
+  <!-- Login Gate (bright) -->
+  <div class="gate" id="gate">
+    <div class="box">
+      <h2>🔐 Admin Login</h2>
+      <p>გთხოვ, შეიყვანე პაროლი admin პანელზე.</p>
+      <input id="pwd" type="password" placeholder="პაროლი" />
+      <div class="row">
+        <button class="btn" id="enterBtn">შესვლა</button>
+        <button class="btn secondary" id="showBtn" type="button">გამოჩენა</button>
+      </div>
+      <div class="error" id="err"></div>
+      <div class="footer">ბრაუზერი დაიმახსოვრებს მხოლოდ ამ სესიაზე.</div>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="card">
+      <h1>📊 გამოცდის შედეგები</h1>
+      <div class="sub">ყველა კანდიდატის ჩანაწერი (გარე/შიდა ქსელიდან). უახლესი პირველზე.</div>
+
+      <div class="controls">
+        <input type="search" id="search" placeholder="ძიება: სახელი, გვარი, თარიღი…" />
+        <select id="status">
+          <option value="">ყველა სტატუსი</option>
+          <option value="pass">ჩაბარებულია</option>
+          <option value="fail">ვერ ჩააბარა</option>
+        </select>
+        <select id="limit">
+          <option value="50">Last 50</option>
+          <option value="100">Last 100</option>
+          <option value="200">Last 200</option>
+          <option value="">All</option>
+        </select>
+        <button class="btn" id="exportBtn">Export CSV</button>
+      </div>
+
+      <div class="table-wrap" id="tableWrap">
+        <div class="loader" id="loader">იტვირთება…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Details Modal -->
+  <div class="modal" id="detailsModal">
+    <div class="panel">
+      <span class="close-x" id="closeModal">✕ დახურვა</span>
+      <h3 id="modalTitle">დეტალები</h3>
+      <div id="detailsBody"></div>
+    </div>
+  </div>
+
+<script>
+/** CONFIG **/
+const PASSWORD = "admin123";
+const API_URL = "https://script.google.com/macros/s/AKfycby6fqOmFLSQGE43t4BMtsMbrgJgC8PgDES8cCU5Lh_1OnAOnYJ0-E1yyKrQMvyvqUts/exec";
+
+/** Login Gate **/
+const gate = document.getElementById('gate');
+const pwdInput = document.getElementById('pwd');
+const err = document.getElementById('err');
+const enterBtn = document.getElementById('enterBtn');
+const showBtn = document.getElementById('showBtn');
+
+showBtn.onclick = () => { pwdInput.type = (pwdInput.type === 'password' ? 'text' : 'password'); };
+enterBtn.onclick = () => tryLogin();
+pwdInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter') tryLogin(); });
+
+function tryLogin() {
+  if (pwdInput.value === PASSWORD) {
+    sessionStorage.setItem('admin_ok', '1');
+    gate.style.display = 'none';
+    boot();
+  } else {
+    err.textContent = "პაროლი არასწორია.";
+    pwdInput.focus();
+  }
+}
+if (sessionStorage.getItem('admin_ok') === '1') {
+  gate.style.display = 'none';
+  boot();
+}
+
+/** UI refs **/
+const searchEl = document.getElementById('search');
+const statusEl = document.getElementById('status');
+const limitEl = document.getElementById('limit');
+const tableWrap = document.getElementById('tableWrap');
+const loaderEl = document.getElementById('loader');
+const exportBtn = document.getElementById('exportBtn');
+
+const detailsModal = document.getElementById('detailsModal');
+const closeModal = document.getElementById('closeModal');
+const detailsBody = document.getElementById('detailsBody');
+const modalTitle = document.getElementById('modalTitle');
+
+closeModal.onclick = () => detailsModal.classList.remove('active');
+detailsModal.addEventListener('click', (e)=>{ if(e.target===detailsModal) detailsModal.classList.remove('active'); });
+
+let ALL_ROWS = [];
+
+function boot() {
+  fetchData().then(rows => {
+    ALL_ROWS = rows;
+    render();
+    bindEvents();
+  }).catch(err => {
+    tableWrap.innerHTML = '<div class="empty">დამაკავშირებელი შეცდომა. გადაამოწმე Apps Script-ის URL და CORS (Access-Control-Allow-Origin: *).</div>';
+    console.error(err);
+  });
+}
+
+function bindEvents() {
+  searchEl.addEventListener('input', render);
+  statusEl.addEventListener('change', render);
+  limitEl.addEventListener('change', render);
+  exportBtn.addEventListener('click', exportCSV);
+}
+
+async function fetchData() {
+  // cache-bust query param
+  const url = API_URL + (API_URL.includes('?') ? '&' : '?') + 't=' + Date.now();
+  const res = await fetch(url, { method: 'GET', headers: { 'Accept': 'application/json' } });
+  // Expect either array or {rows:[...]}
+  let data;
+  try { data = await res.json(); }
+  catch {
+    // If Apps Script returns text JSON
+    const text = await res.text();
+    data = JSON.parse(text);
+  }
+  const rows = Array.isArray(data) ? data : (Array.isArray(data.rows) ? data.rows : []);
+  // normalize fields and sort desc by date
+  const normalize = rows.map((r) => ({
+    name: r.name ?? r.Name ?? r.fullName ?? "",
+    score: toNum(r.score ?? r.Score),
+    total: toNum(r.total ?? r.Total),
+    percent: toNum((r.percent ?? r.Percent ?? "").toString().replace('%','')),
+    date: r.date ?? r.Date ?? r.timestamp ?? "",
+    passed: typeof r.passed === 'boolean' ? r.passed :
+            (typeof r.passed === 'string' ? r.passed.includes('✅') || r.passed.toLowerCase()==='true' : false),
+    details: r.details ?? r.Details ?? ""
+  }));
+  normalize.sort((a,b)=> parseDate(b.date) - parseDate(a.date));
+  return normalize;
+}
+function formatHumanDate(s){
+  const d = new Date(s);
+  if (isNaN(d)) return s;
+  const dd = String(d.getDate()).padStart(2,'0');
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  const yyyy = d.getFullYear();
+  const hh = String(d.getHours()).padStart(2,'0');
+  const min = String(d.getMinutes()).padStart(2,'0');
+  return `${dd}.${mm}.${yyyy} ${hh}:${min}`;
+}
+
+function toNum(v){ const n = Number(v); return isFinite(n) ? n : 0; }
+function parseDate(s){ const d = new Date(s); return isNaN(d) ? new Date(0) : d; }
+
+function render() {
+  const q = (searchEl.value || "").toLowerCase().trim();
+  const st = statusEl.value; // "", "pass", "fail"
+  let rows = ALL_ROWS.filter(r => {
+    const hay = [r.name, r.date, r.score + '/' + r.total, r.percent + '%'].join(' ').toLowerCase();
+    const matchQ = q ? hay.includes(q) : true;
+    const matchS = st === "" ? true : (st === 'pass' ? r.passed : !r.passed);
+    return matchQ && matchS;
+  });
+
+  const lim = limitEl.value ? Number(limitEl.value) : null;
+  if (lim) rows = rows.slice(0, lim);
+
+  const html = `
+    <table>
+      <thead>
+        <tr>
+          <th>სახელი, გვარი</th>
+          <th>ქულა</th>
+          <th>%</th>
+          <th>სტატუსი</th>
+          <th>თარიღი</th>
+          <th class="right">ქმედება</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows.map((r, idx)=>`
+          <tr>
+            <td><strong>${escapeHtml(r.name || '—')}</strong></td>
+            <td>${r.score} / ${r.total}</td>
+            <td>${r.percent}%</td>
+            <td>${r.passed ? '<span class="pill pass">ჩაბარებულია</span>' : '<span class="pill fail">ვერ ჩააბარა</span>'}</td>
+            <td class="muted">${escapeHtml(formatHumanDate(r.date))}</td>
+            <td class="right">
+              <button class="btn secondary" data-i="${idx}" data-action="details">დეტალები</button>
+            </td>
+          </tr>
+        `).join('')}
+        ${rows.length===0 ? `<tr><td colspan="6" class="muted">ჩანაწერები არ მოიძებნა.</td></tr>` : ''}
+      </tbody>
+    </table>
+  `;
+  tableWrap.innerHTML = html;
+
+  // attach details handlers
+  tableWrap.querySelectorAll('button[data-action="details"]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const i = Number(btn.dataset.i);
+      const row = rows[i];
+      openDetails(row);
+    });
+  });
+}
+
+function openDetails(row){
+  modalTitle.textContent = `დეტალები — ${row.name} (${row.score}/${row.total}, ${row.percent}%)`;
+
+  let detailsHTML = '';
+  try {
+    // details შეიძლება იყოს უკვე ობიექტი ან JSON-string
+    const det = typeof row.details === 'string' ? JSON.parse(row.details) : row.details;
+    if (Array.isArray(det)) {
+      detailsHTML = `
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>კითხვა</th>
+              <th>შენი პასუხი</th>
+              <th>სწორი პასუხი</th>
+              <th>სტატუსი</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${det.map((d, i)=> {
+              const ok = (d.userAnswer||"") === (d.correctAnswer||"");
+              return `
+              <tr class="${ok ? 'row-correct' : 'row-wrong'}">
+                <td>${i+1}</td>
+                <td>${escapeHtml(d.question||'')}</td>
+                <td>${escapeHtml(d.userAnswer||'—')}</td>
+                <td>${escapeHtml(d.correctAnswer||'')}</td>
+                <td style="font-weight:700; color:${ok?'#2ea043':'#da3633'};">${ok?'სწორია ✅':'არასწორია ❌'}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      `;
+    } else {
+      detailsHTML = `<pre>${escapeHtml(JSON.stringify(det, null, 2))}</pre>`;
+    }
+  } catch {
+    detailsHTML = `<pre>${escapeHtml(String(row.details || ''))}</pre>`;
+  }
+
+  detailsBody.innerHTML = detailsHTML;
+  detailsModal.classList.add('active');
+}
+
+function exportCSV(){
+  const rows = [['Name','Score','Total','Percent','Passed','Date']];
+  ALL_ROWS.forEach(r=>{
+    rows.push([r.name, r.score, r.total, r.percent, r.passed ? 'Passed' : 'Failed', r.date]);
+  });
+  const BOM = "\uFEFF";
+  const csv = BOM + rows.map(r=>r.map(s=>csvCell(s)).join(',')).join('\n');
+  const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'exam_results.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+function csvCell(v){
+  if (v==null) return '';
+  const s = String(v);
+  if (/[",\n]/.test(s)) return `"${s.replace(/"/g,'""')}"`;
+  return s;
+}
+function escapeHtml(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+</script>
+</body>
+</html>
