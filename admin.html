@@ -277,7 +277,7 @@ async function fetchData() {
     name: r.name ?? r.Name ?? r.fullName ?? "",
     score: toNum(r.score ?? r.Score),
     total: toNum(r.total ?? r.Total),
-    percent: toNum((r.percent ?? r.Percent ?? "").toString().replace('%','')),
+    percent: toNum((r.percent ?? r.Percent ?? "").toString().replace('%','')) * 100,
     date: r.date ?? r.Date ?? r.timestamp ?? "",
     passed: typeof r.passed === 'boolean' ? r.passed :
             (typeof r.passed === 'string' ? r.passed.includes('✅') || r.passed.toLowerCase()==='true' : false),
