@@ -335,6 +335,7 @@ function render() {
             <td class="muted">${escapeHtml(formatHumanDate(r.date))}</td>
             <td class="right">
               <button class="btn secondary" data-i="${idx}" data-action="details">დეტალები</button>
+              <button class="btn" style="margin-left:6px" data-i="${idx}" data-action="excel">Excel</button>
             </td>
           </tr>
         `).join('')}
@@ -344,12 +345,21 @@ function render() {
   `;
   tableWrap.innerHTML = html;
 
-  // attach details handlers
+  // attach details handlers (filtered view indexing)
   tableWrap.querySelectorAll('button[data-action="details"]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const i = Number(btn.dataset.i);
       const row = rows[i];
       openDetails(row);
+    });
+  });
+
+  // attach EXCEL handlers (filtered view indexing)
+  tableWrap.querySelectorAll('button[data-action="excel"]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const i = Number(btn.dataset.i);
+      const row = rows[i];
+      exportSingleExcel(row);
     });
   });
 }
@@ -399,6 +409,7 @@ function openDetails(row){
   detailsModal.classList.add('active');
 }
 
+/* EXPORT — ALL rows to CSV (already had) */
 function exportCSV(){
   const rows = [['Name','Score','Total','Percent','Passed','Date']];
   ALL_ROWS.forEach(r=>{
@@ -413,6 +424,61 @@ function exportCSV(){
   document.body.appendChild(a); a.click(); a.remove();
   URL.revokeObjectURL(url);
 }
+
+/* NEW — EXPORT SINGLE USER to CSV (Excel-friendly) */
+function exportSingleExcel(r){
+  const rows = [
+    ["Name", r.name || ""],
+    ["Score", r.score],
+    ["Total", r.total],
+    ["Percent", (r.percent ?? "") + (r.percent!=null ? "%" : "")],
+    ["Passed", r.passed ? "Passed" : "Failed"],
+    ["Date", r.date || ""],
+    [],
+    ["Question","Your Answer","Correct Answer","Status"]
+  ];
+
+  try{
+    const det = typeof r.details === 'string' ? JSON.parse(r.details) : r.details;
+    if(Array.isArray(det)){
+      det.forEach(d=>{
+        const ua = d?.userAnswer ?? "";
+        const ca = d?.correctAnswer ?? "";
+        rows.push([
+          d?.question ?? "",
+          ua,
+          ca,
+          ua === ca ? "Correct" : "Wrong"
+        ]);
+      });
+    } else if (det) {
+      rows.push([]);
+      rows.push(["RAW DETAILS", JSON.stringify(det)]);
+    }
+  }catch(_){
+    if (r.details) {
+      rows.push([]);
+      rows.push(["RAW DETAILS", String(r.details)]);
+    }
+  }
+
+  const BOM = "\uFEFF";
+  const csv = BOM + rows.map(rr => rr.map(s => csvCell(s)).join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+
+  // უსაფრთხო სახელი — მხოლოდ “სახელი გვარი” გაქვს, სპეციალურებს ვანაცვლებთ "_"
+  const safeName = String(r.name || "user").replace(/[^0-9A-Za-zა-ჰ]+/g, "_");
+  a.href = url;
+  a.download = `${safeName}.csv`;
+
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 function csvCell(v){
   if (v==null) return '';
   const s = String(v);
